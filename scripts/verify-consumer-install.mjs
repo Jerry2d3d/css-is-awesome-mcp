@@ -3,20 +3,40 @@
 // verify-consumer-install.mjs
 // ============================================================================
 // v1.1 EPIC-07 F2.1 — proves css-is-awesome-mcp works the way a real
-// consumer's `npx css-is-awesome-mcp` install does, not just the dev-tree
+// consumer's `npx css-is-awesome-mcp` install does, not just a dev-tree
 // `require('./server.cjs')` path (which resolves node_modules relative to
 // THIS repo and would silently pass even if the packaged-install path were
 // broken).
 //
+// This script used to copy server.cjs directly into the scratch dir instead
+// of installing THIS package as a real npm dependency. That sidestepped the
+// one thing a real `npx css-is-awesome-mcp` actually depends on: npm's `bin`
+// symlink resolution. It's why this suite stayed green on 2026-09-11 while
+// the real command was silently broken — core (`css-is-awesome`) still had
+// its own `bin: { "css-is-awesome-mcp": "mcp/server.cjs" }` entry at the
+// time, and because this package depends on core, npm links BOTH packages'
+// identically-named bins into the same node_modules/.bin/ — core's silently
+// won. Fixed there by removing core's colliding bin entry; fixed here by
+// actually installing both packages as real dependencies and invoking the
+// resolved bin, so a future name collision (or any other bin-resolution
+// regression) fails this test instead of shipping unnoticed.
+//
 // Steps, in a scratch directory (not this repo):
-//   1. `npm pack` the sibling css-is-awesome checkout into a real tarball
-//      (CIA_REPO_PATH env var, default: ../css-is-awesome) — tests today's
-//      actual local source, not whatever's currently on the npm registry.
-//   2. Copy server.cjs + a minimal package.json into the scratch dir.
-//   3. `npm install` the tarball + sdk + zod there — a real, from-scratch
-//      node_modules tree, exactly like a fresh `npx css-is-awesome-mcp`.
-//   4. Spawn server.cjs FROM the scratch dir over real stdio JSON-RPC and
-//      call a handful of tools, asserting real content comes back.
+//   1. `npm pack` the sibling css-is-awesome checkout (CIA_REPO_PATH env var,
+//      default: ../css-is-awesome) — tests today's actual local source, not
+//      whatever's currently on the npm registry.
+//   2. `npm pack` THIS repo too.
+//   3. Write a scratch package.json depending on both tarballs via `file:`
+//      specifiers (+ sdk/zod), so npm resolves css-is-awesome-mcp's own
+//      "css-is-awesome" dependency to the local tarball from step 1 instead
+//      of the registry, and installs it — a real, from-scratch node_modules
+//      tree with real `bin` symlinks, exactly like a fresh
+//      `npx css-is-awesome-mcp`.
+//   4. Assert `node_modules/.bin/css-is-awesome-mcp` resolves to THIS
+//      package's own server.cjs, not core's.
+//   5. Spawn it via that resolved bin (not a raw file path) over real stdio
+//      JSON-RPC and call a handful of tools, asserting real content comes
+//      back.
 //
 // Usage: node scripts/verify-consumer-install.mjs
 // ============================================================================
@@ -72,34 +92,76 @@ log(`scratch dir: ${scratch}`);
 try {
   // 1. Pack the real, local css-is-awesome checkout.
   log(`packing ${CIA_REPO_PATH}...`);
-  const packOut = execFileSync("npm", ["pack", "--pack-destination", scratch, "--json"], {
+  const ciaPackOut = execFileSync("npm", ["pack", "--pack-destination", scratch, "--json"], {
     cwd: CIA_REPO_PATH,
     encoding: "utf8",
     ...NPM_OPTS,
   });
-  const [{ filename }] = JSON.parse(packOut);
-  const tarballPath = path.join(scratch, filename);
-  log(`packed: ${filename}`);
+  const [{ filename: ciaFilename }] = JSON.parse(ciaPackOut);
+  log(`packed: ${ciaFilename}`);
 
-  // 2. Copy this package's server + a minimal package.json into the scratch dir.
-  fs.copyFileSync(path.join(REPO_ROOT, "server.cjs"), path.join(scratch, "server.cjs"));
+  // 2. Pack THIS repo too — this is the package whose bin resolution we're
+  // actually testing, so it has to be installed for real, not file-copied.
+  log(`packing ${REPO_ROOT}...`);
+  const mcpPackOut = execFileSync("npm", ["pack", "--pack-destination", scratch, "--json"], {
+    cwd: REPO_ROOT,
+    encoding: "utf8",
+    ...NPM_OPTS,
+  });
+  const [{ filename: mcpFilename }] = JSON.parse(mcpPackOut);
+  log(`packed: ${mcpFilename}`);
+
+  // 3. A scratch package.json depending on both tarballs via `file:` specifiers.
+  // css-is-awesome-mcp's own package.json still declares
+  // "css-is-awesome": "^1.11.1" (a registry range) — npm dedupes that against
+  // this top-level file: dependency instead of hitting the registry, as long
+  // as the packed version satisfies the range.
   fs.writeFileSync(
     path.join(scratch, "package.json"),
-    JSON.stringify({ name: "cia-mcp-verify-scratch", private: true, version: "0.0.0" }, null, 2),
+    JSON.stringify(
+      {
+        name: "cia-mcp-verify-scratch",
+        private: true,
+        version: "0.0.0",
+        dependencies: {
+          "css-is-awesome-mcp": `file:./${mcpFilename}`,
+          "css-is-awesome": `file:./${ciaFilename}`,
+          "@modelcontextprotocol/sdk": sdkVersion,
+          zod: zodVersion,
+        },
+      },
+      null,
+      2,
+    ),
   );
+  log("installing both tarballs + sdk + zod (real, from-scratch node_modules)...");
+  execFileSync("npm", ["install", "--no-audit", "--no-fund"], {
+    cwd: scratch,
+    stdio: ["ignore", "pipe", "pipe"],
+    ...NPM_OPTS,
+  });
 
-  // 3. Install exactly what a real `npx css-is-awesome-mcp` would pull in.
-  log("installing tarball + sdk + zod (real, from-scratch node_modules)...");
-  execFileSync(
-    "npm",
-    ["install", tarballPath, `@modelcontextprotocol/sdk@${sdkVersion}`, `zod@${zodVersion}`, "--no-audit", "--no-fund"],
-    { cwd: scratch, stdio: ["ignore", "pipe", "pipe"], ...NPM_OPTS },
-  );
+  // 4. The real regression check: the resolved bin must be THIS package's
+  // own server.cjs, not core's (mcp/server.cjs) — see the header comment for
+  // exactly how this broke silently before.
+  const binPath = path.join(scratch, "node_modules", ".bin", "css-is-awesome-mcp");
+  const binShim = fs.existsSync(binPath) ? fs.readFileSync(binPath, "utf8") : null;
+  if (!binShim) {
+    fail(`node_modules/.bin/css-is-awesome-mcp was not created at all`);
+  } else if (binShim.includes("css-is-awesome/mcp/server.cjs")) {
+    fail(`node_modules/.bin/css-is-awesome-mcp resolves to CORE's mcp/server.cjs, not this package's own server.cjs — bin name collision regressed`);
+  } else if (!binShim.includes("css-is-awesome-mcp/server.cjs")) {
+    fail(`node_modules/.bin/css-is-awesome-mcp doesn't resolve to css-is-awesome-mcp/server.cjs — unexpected shim contents`);
+  } else {
+    pass(`node_modules/.bin/css-is-awesome-mcp resolves to this package's own server.cjs`);
+  }
 
-  // 4. Spawn the server from the scratch dir over real stdio and call tools.
-  const proc = spawn(process.execPath, [path.join(scratch, "server.cjs")], {
+  // 5. Spawn via the resolved bin (not a raw file path) over real stdio.
+  const binCmd = process.platform === "win32" ? `${binPath}.cmd` : binPath;
+  const proc = spawn(binCmd, [], {
     cwd: scratch,
     stdio: ["pipe", "pipe", "pipe"],
+    ...NPM_OPTS,
   });
   proc.on("error", (err) => log(`spawn error: ${err.message}`));
   proc.on("exit", (code, sig) => log(`server process exited early: code=${code} sig=${sig}`));
