@@ -38,6 +38,17 @@ jobs:
         working-directory: css-is-awesome-mcp
         run: npm install
 
+      # verify-consumer-install.mjs runs `npm pack` on this sibling checkout,
+      # which triggers css-is-awesome's own `prepare` lifecycle script
+      # (npm run build:css:all) to make sure dist/ ships in the tarball.
+      # That needs `sass` on PATH, so the sibling's own devDependencies must
+      # be installed here first — without this, `prepare` fails with
+      # "sass: not found", which corrupts npm pack's JSON stdout output and
+      # surfaces as a confusing JSON.parse error in verify-consumer-install.mjs.
+      - name: Install css-is-awesome's (sibling) dependencies
+        working-directory: css-is-awesome
+        run: npm install
+
       - name: Run the consumer-shaped verification
         working-directory: css-is-awesome-mcp
         run: npm run verify
