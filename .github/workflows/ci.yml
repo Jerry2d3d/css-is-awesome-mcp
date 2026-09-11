@@ -1,0 +1,43 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  verify-consumer-install:
+    runs-on: ubuntu-latest
+    steps:
+      # Two checkouts, as SIBLING directories — verify-consumer-install.mjs
+      # expects `../css-is-awesome` next to this repo (CIA_REPO_PATH env var
+      # overrides the path if the layout ever changes). This is the actual
+      # "consumer-shaped" proof: pack the real css-is-awesome source, install
+      # it exactly like `npx css-is-awesome-mcp` would, then call real tools
+      # over real stdio — not just `require('./server.cjs')` against the
+      # dev tree, which would stay green even if the packaged-install path
+      # were broken.
+      - name: Checkout css-is-awesome-mcp
+        uses: actions/checkout@v4
+        with:
+          path: css-is-awesome-mcp
+
+      - name: Checkout css-is-awesome (sibling)
+        uses: actions/checkout@v4
+        with:
+          repository: Jerry2d3d/css-is-awesome
+          path: css-is-awesome
+
+      - name: Use Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install css-is-awesome-mcp's own dependencies
+        working-directory: css-is-awesome-mcp
+        run: npm install
+
+      - name: Run the consumer-shaped verification
+        working-directory: css-is-awesome-mcp
+        run: npm run verify

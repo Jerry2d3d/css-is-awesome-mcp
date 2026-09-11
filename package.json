@@ -1,0 +1,42 @@
+{
+  "name": "css-is-awesome-mcp",
+  "version": "0.1.0",
+  "description": "Zero-install MCP server for css-is-awesome (cia) — npx css-is-awesome-mcp, no manual sdk/zod install. Same 30-tool surface as the server bundled with css-is-awesome itself.",
+  "homepage": "https://github.com/Jerry2d3d/css-is-awesome-mcp#readme",
+  "bugs": {
+    "url": "https://github.com/Jerry2d3d/css-is-awesome-mcp/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Jerry2d3d/css-is-awesome-mcp.git"
+  },
+  "license": "MIT",
+  "author": "Jerry2d3d",
+  "bin": {
+    "css-is-awesome-mcp": "server.cjs"
+  },
+  "files": [
+    "server.cjs",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.29.0",
+    "css-is-awesome": "^1.11.1",
+    "zod": "^3.25.0 || ^4.0.0"
+  },
+  "scripts": {
+    "start": "node server.cjs",
+    "verify": "node scripts/verify-consumer-install.mjs"
+  },
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "css-is-awesome",
+    "design-system",
+    "scss"
+  ]
+}
