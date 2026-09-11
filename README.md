@@ -1,5 +1,7 @@
 # css-is-awesome-mcp
 
+[![npm](https://img.shields.io/npm/v/css-is-awesome-mcp?logo=npm&color=cb3837)](https://www.npmjs.com/package/css-is-awesome-mcp) [![CI](https://github.com/Jerry2d3d/css-is-awesome-mcp/actions/workflows/ci.yml/badge.svg)](https://github.com/Jerry2d3d/css-is-awesome-mcp/actions/workflows/ci.yml) [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](./LICENSE)
+
 The zero-install MCP server for [css-is-awesome](https://github.com/Jerry2d3d/css-is-awesome) ("cia") — a token-driven SCSS design system.
 
 ```bash
