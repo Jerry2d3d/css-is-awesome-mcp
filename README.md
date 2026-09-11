@@ -65,6 +65,14 @@ That's the whole setup. The first run downloads this package and its
 dependencies (including `css-is-awesome` itself, for its source data);
 subsequent runs are cached by npm.
 
+Prefer a pinned version in your own `package.json`/lockfile instead of
+whatever `npx` resolves at run time? Install it like any other dependency —
+`npx` then runs the locally installed copy:
+
+```bash
+npm install css-is-awesome-mcp
+```
+
 ## Local development
 
 ```bash
