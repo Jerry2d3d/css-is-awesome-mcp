@@ -1,0 +1,72 @@
+# Release pipeline — publishes css-is-awesome-mcp to npm and creates a
+# GitHub Release. Mirrors css-is-awesome core's release.yml pattern exactly
+# (same semantic-release plugin set, same trigger shape) — see that repo's
+# release.yml for the fuller recovery-procedure notes if this job fails
+# mid-publish (git tag pushed but npm publish failed, etc.).
+#
+# Trigger: runs after the CI workflow succeeds on a push to `main`. CI must be
+# green before release runs (gated on workflow_run.conclusion below).
+#
+# Secrets required (configure under repo Settings -> Secrets and variables -> Actions):
+#   NPM_TOKEN     — an npm token with publish rights, of type CLASSIC
+#                   "Automation" (not "Publish", and not a granular token
+#                   scoped to "select packages" — this package didn't exist
+#                   yet when the token needed to be able to create it).
+#                   Automation tokens bypass 2FA by design, which is what
+#                   makes CI publishing possible at all.
+#   GITHUB_TOKEN  — provided automatically by GitHub Actions; semantic-release
+#                   uses it to cut the GitHub Release and push the CHANGELOG /
+#                   package.json bump commit back to main.
+#
+# Do not run this locally — semantic-release is configured to publish on
+# green CI only.
+
+name: Release
+
+on:
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
+    branches: [main]
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    name: Publish to npm + GitHub Release
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    if: >-
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.event == 'push' &&
+      github.event.workflow_run.head_branch == 'main'
+    permissions:
+      contents: write
+      issues: write
+      pull-requests: write
+      id-token: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          registry-url: "https://registry.npmjs.org"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: npx semantic-release
