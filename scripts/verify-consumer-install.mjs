@@ -235,7 +235,12 @@ try {
 
   const toolsList = await call("tools/list", {});
   const toolCount = toolsList.result?.tools?.length ?? 0;
-  toolCount === 30 ? pass(`server advertises 30 tools`) : fail(`expected 30 tools, got ${toolCount}`);
+  // A floor, not an exact match — core's own mcp-coverage.mjs is the
+  // source of truth for the precise count. Pinning an exact number here
+  // meant this check had to be hand-bumped on every tool addition (missed
+  // once already, breaking CI for validate_theme); a floor still catches
+  // "tools went missing" without needing a touch on every new tool.
+  toolCount >= 30 ? pass(`server advertises ${toolCount} tools`) : fail(`expected at least 30 tools, got ${toolCount}`);
 
   const mixins = await callTool("list_mixins", {});
   mixins.total > 50 ? pass(`list_mixins returns real data (${mixins.total} mixins)`) : fail(`list_mixins.total suspiciously low: ${mixins.total}`);
