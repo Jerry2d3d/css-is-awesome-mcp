@@ -1,3 +1,10 @@
+# [1.1.0](https://github.com/Jerry2d3d/css-is-awesome-mcp/compare/v1.0.1...v1.1.0) (2026-09-11)
+
+
+### Features
+
+* add derive-theme:<base> intent to assemble_prompt ([155d011](https://github.com/Jerry2d3d/css-is-awesome-mcp/commit/155d011b8f729c6deafd4fe673acc9ac3af55f12))
+
 ## [1.0.1](https://github.com/Jerry2d3d/css-is-awesome-mcp/compare/v1.0.0...v1.0.1) (2026-09-11)
 
 
