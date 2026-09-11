@@ -144,14 +144,31 @@ try {
   // 4. The real regression check: the resolved bin must be THIS package's
   // own server.cjs, not core's (mcp/server.cjs) — see the header comment for
   // exactly how this broke silently before.
+  //
+  // npm's .bin entries are platform-shaped differently: on POSIX it's a real
+  // symlink (lstat + readlink gives the target PATH without following it),
+  // on Windows it's a generated shell/cmd wrapper SCRIPT whose text embeds
+  // the resolved path. Reading a POSIX symlink with plain readFileSync
+  // follows it and returns the target file's actual source code instead of
+  // a path — which contains neither expected substring, so it always fails
+  // this check regardless of which file it actually points to.
   const binPath = path.join(scratch, "node_modules", ".bin", "css-is-awesome-mcp");
-  const binShim = fs.existsSync(binPath) ? fs.readFileSync(binPath, "utf8") : null;
-  if (!binShim) {
+  let binTarget = null;
+  try {
+    if (fs.lstatSync(binPath).isSymbolicLink()) {
+      binTarget = fs.readlinkSync(binPath);
+    } else {
+      binTarget = fs.readFileSync(binPath, "utf8");
+    }
+  } catch {
+    binTarget = null;
+  }
+  if (!binTarget) {
     fail(`node_modules/.bin/css-is-awesome-mcp was not created at all`);
-  } else if (binShim.includes("css-is-awesome/mcp/server.cjs")) {
+  } else if (binTarget.includes("css-is-awesome/mcp/server.cjs")) {
     fail(`node_modules/.bin/css-is-awesome-mcp resolves to CORE's mcp/server.cjs, not this package's own server.cjs — bin name collision regressed`);
-  } else if (!binShim.includes("css-is-awesome-mcp/server.cjs")) {
-    fail(`node_modules/.bin/css-is-awesome-mcp doesn't resolve to css-is-awesome-mcp/server.cjs — unexpected shim contents`);
+  } else if (!binTarget.includes("css-is-awesome-mcp") || !binTarget.includes("server.cjs")) {
+    fail(`node_modules/.bin/css-is-awesome-mcp doesn't resolve to css-is-awesome-mcp's server.cjs — unexpected target: ${binTarget}`);
   } else {
     pass(`node_modules/.bin/css-is-awesome-mcp resolves to this package's own server.cjs`);
   }
