@@ -1,3 +1,15 @@
+# [1.2.0](https://github.com/Jerry2d3d/css-is-awesome-mcp/compare/v1.1.0...v1.2.0) (2026-09-11)
+
+
+### Bug Fixes
+
+* **test:** stop pinning an exact tool count, use a floor instead ([69ccae2](https://github.com/Jerry2d3d/css-is-awesome-mcp/commit/69ccae27d76c4180d08a4a1bb00fcbb19e099004))
+
+
+### Features
+
+* add validate_theme tool ([a27e35b](https://github.com/Jerry2d3d/css-is-awesome-mcp/commit/a27e35b1681bd7fd85c971c2ba344da26756647f))
+
 # [1.1.0](https://github.com/Jerry2d3d/css-is-awesome-mcp/compare/v1.0.1...v1.1.0) (2026-09-11)
 
 
