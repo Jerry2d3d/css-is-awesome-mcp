@@ -1,6 +1,6 @@
 {
   "name": "css-is-awesome-mcp",
-  "version": "1.3.0",
+  "version": "1.4.0",
   "main": "server.cjs",
   "description": "Zero-install MCP server for css-is-awesome (cia) — npx css-is-awesome-mcp, no manual sdk/zod install. Same 30-tool surface as the server bundled with css-is-awesome itself.",
   "homepage": "https://github.com/Jerry2d3d/css-is-awesome-mcp#readme",

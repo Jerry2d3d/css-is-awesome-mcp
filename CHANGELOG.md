@@ -1,3 +1,10 @@
+# [1.4.0](https://github.com/Jerry2d3d/css-is-awesome-mcp/compare/v1.3.0...v1.4.0) (2026-09-19)
+
+
+### Features
+
+* get_token_map tool + in-process handler (needs css-is-awesome >= 1.19.0) ([0635d45](https://github.com/Jerry2d3d/css-is-awesome-mcp/commit/0635d45fd0734d8cb64815d42aed34307bbc82ce))
+
 # [1.3.0](https://github.com/Jerry2d3d/css-is-awesome-mcp/compare/v1.2.0...v1.3.0) (2026-09-19)
 
 
