@@ -8,7 +8,7 @@
  * HERE, not on the core `css-is-awesome` package, which ships zero JS
  * runtime dependencies by hard rule. This server is otherwise the exact
  * same tool surface as the copy bundled inside `css-is-awesome` itself
- * (`mcp/server.cjs` there) — same handlers, same 30 tools — it just resolves
+ * (`mcp/server.cjs` there) — same handlers, same 32 tools — it just resolves
  * cia's source data from the installed `css-is-awesome` npm dependency
  * instead of a sibling directory in the same repo.
  *
@@ -19,6 +19,7 @@
  *
  * Resource families:
  *   Themes:        list_themes,     get_theme,     search_themes
+ *   Themes (build): theme_from_tokens — design-tokens JSON → validated theme.css (css-is-awesome ≥ 1.17.0)
  *   Mixins:        list_mixins,     get_mixin,     search_mixins
  *   Functions:     list_functions,  get_function,  search_functions
  *   Tokens:        list_tokens,     get_token,     search_tokens
@@ -712,6 +713,24 @@ const handlers = {
     return validateText(css, loadContract(), { label: label || undefined });
   },
 
+  // Design-tokens JSON (DTCG v2025.10 / Tokens Studio / flat --token map) →
+  // a complete theme.css in the shipped shape, validated + contrast-audited.
+  // Same function as `npx cia theme from-tokens`; reachable in-process via
+  // module.exports.handlers. The converter ships inside css-is-awesome from
+  // 1.17.0 (scripts/tokens-to-theme.cjs) — an older install gets a clear
+  // error instead of a MODULE_NOT_FOUND stack.
+  theme_from_tokens({ tokens, name, format, base, dark, mode, validate } = {}) {
+    if (tokens == null) throw new Error('theme_from_tokens: tokens is required (object or JSON string)');
+    if (!name) throw new Error('theme_from_tokens: name is required');
+    const modPath = path.join(SCRIPTS_DIR, 'tokens-to-theme.cjs');
+    if (!fs.existsSync(modPath)) {
+      const installed = (() => { try { return require(path.join(CIA_ROOT, 'package.json')).version; } catch { return 'unknown'; } })();
+      throw new Error(`theme_from_tokens needs css-is-awesome >= 1.17.0 (installed: ${installed}) — npm install css-is-awesome@latest`);
+    }
+    const { themeFromTokens } = require(modPath);
+    return themeFromTokens({ tokens, name, format, base, dark, mode, validate });
+  },
+
   // ─── Mixins ────────────────────────────────────────────────────────────
 
   list_mixins({ category, component, limit = 500, offset = 0 } = {}) {
@@ -1367,6 +1386,27 @@ async function startServer() {
       label: z.string().optional().describe('Optional name for the result (e.g. the intended theme name); purely cosmetic.'),
     },
   }, async (a) => ok(handlers.validate_theme(a || {})));
+
+  server.registerTool('theme_from_tokens', {
+    description:
+      'Build a complete, validated cia theme.css from a design-tokens JSON — DTCG v2025.10 ({ $value, $type }, ' +
+      '{aliases} resolved), a Tokens Studio for Figma export ({ value, type }, single or multi-set), or a flat ' +
+      '{ "--token": value } map. Format is auto-detected. Every REQUIRED contract token the file does not supply ' +
+      'is inherited from a shipped base theme (default boilerplate) and listed in report.inherited, so the output ' +
+      'is always contract-complete; unmapped paths are emitted verbatim and listed in report.unmapped, never ' +
+      'dropped. Pass `dark` (same format) or a single file with paired color-light/color-dark groups to get ' +
+      'light-dark() values. Returns { css, report, validation } — validation is the same result validate_theme ' +
+      'gives, run on the CSS before you write it anywhere. Needs css-is-awesome >= 1.17.0 installed.',
+    inputSchema: {
+      tokens: z.union([z.record(z.any()), z.string()]).describe('The tokens JSON (object, or a JSON string).'),
+      name: z.string().describe('Theme name — kebab-case slug, becomes [data-theme="<name>"].'),
+      format: z.enum(['auto', 'dtcg', 'tokens-studio', 'cia-flat']).optional().describe('Default auto.'),
+      base: z.string().optional().describe('Shipped theme that supplies missing required tokens. Default boilerplate.'),
+      dark: z.union([z.record(z.any()), z.string()]).optional().describe('Optional dark-mode tokens (same format) → light-dark() values.'),
+      mode: z.enum(['light', 'dark']).optional().describe('Single-mode color-scheme when there is no dark side. Default light.'),
+      validate: z.boolean().optional().describe('Run the validator + WCAG audit (default true).'),
+    },
+  }, async (a) => ok(handlers.theme_from_tokens(a || {})));
 
   // Mixins
   server.registerTool('list_mixins', {
