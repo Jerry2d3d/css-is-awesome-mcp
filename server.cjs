@@ -8,7 +8,7 @@
  * HERE, not on the core `css-is-awesome` package, which ships zero JS
  * runtime dependencies by hard rule. This server is otherwise the exact
  * same tool surface as the copy bundled inside `css-is-awesome` itself
- * (`mcp/server.cjs` there) — same handlers, same 32 tools — it just resolves
+ * (`mcp/server.cjs` there) — same handlers, same 33 tools — it just resolves
  * cia's source data from the installed `css-is-awesome` npm dependency
  * instead of a sibling directory in the same repo.
  *
@@ -20,6 +20,7 @@
  * Resource families:
  *   Themes:        list_themes,     get_theme,     search_themes
  *   Themes (build): theme_from_tokens — design-tokens JSON → validated theme.css (css-is-awesome ≥ 1.17.0)
+ *                   get_token_map     — the path → token mapping as data (css-is-awesome ≥ 1.19.0)
  *   Mixins:        list_mixins,     get_mixin,     search_mixins
  *   Functions:     list_functions,  get_function,  search_functions
  *   Tokens:        list_tokens,     get_token,     search_tokens
@@ -731,6 +732,28 @@ const handlers = {
     return themeFromTokens({ tokens, name, format, base, dark, mode, validate });
   },
 
+  // The design-token → cia-token mapping theme_from_tokens applies, as DATA
+  // (explicit table, prefix rewrites, generic rule, target lists) — or, with
+  // `path`, how one path resolves plus the contract's view of the target.
+  // tokenMap()/resolvePath() ship in css-is-awesome from 1.19.0.
+  get_token_map({ path: tokenPath } = {}) {
+    const modPath = path.join(SCRIPTS_DIR, 'tokens-to-theme.cjs');
+    const mod = fs.existsSync(modPath) ? require(modPath) : null;
+    if (!mod || typeof mod.tokenMap !== 'function') {
+      const installed = (() => { try { return require(path.join(CIA_ROOT, 'package.json')).version; } catch { return 'unknown'; } })();
+      throw new Error(`get_token_map needs css-is-awesome >= 1.19.0 (installed: ${installed}) — npm install css-is-awesome@latest`);
+    }
+    if (tokenPath == null || tokenPath === '') return mod.tokenMap({ ciaRoot: CIA_ROOT });
+    const r = mod.resolvePath(String(tokenPath), { ciaRoot: CIA_ROOT });
+    const entry = getTokens().byName[r.token] || null;
+    return {
+      ...r,
+      required: entry ? entry.required : null,
+      feature: entry && !entry.required ? (entry.feature || null) : null,
+      category: entry ? entry.category : null,
+    };
+  },
+
   // ─── Mixins ────────────────────────────────────────────────────────────
 
   list_mixins({ category, component, limit = 500, offset = 0 } = {}) {
@@ -1407,6 +1430,20 @@ async function startServer() {
       validate: z.boolean().optional().describe('Run the validator + WCAG audit (default true).'),
     },
   }, async (a) => ok(handlers.theme_from_tokens(a || {})));
+
+  server.registerTool('get_token_map', {
+    description:
+      'The design-token → cia-token mapping that theme_from_tokens applies, as data. Without `path`: ' +
+      '{ generatorVersion, contractVersion, explicit: { "<path>": "--token" }, aliases: [{ pattern, ' +
+      'replaceWith }], genericRule, targets: { required, optional } }. With `path` (e.g. ' +
+      '"color.text.primary"): how that one path resolves — { token, mapped, via, status, required, ' +
+      'feature, category }. Use it to map a Figma / DTCG / Tokens Studio token name to the cia custom ' +
+      'property the same way the converter does, or to check a name before building a theme. ' +
+      'Needs css-is-awesome >= 1.19.0 installed.',
+    inputSchema: {
+      path: z.string().optional().describe('One token path to resolve (dot-separated, e.g. spacing.4). Omit for the whole map.'),
+    },
+  }, async (a) => ok(handlers.get_token_map(a || {})));
 
   // Mixins
   server.registerTool('list_mixins', {
