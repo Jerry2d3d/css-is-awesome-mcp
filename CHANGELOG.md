@@ -1,3 +1,15 @@
+# [1.3.0](https://github.com/Jerry2d3d/css-is-awesome-mcp/compare/v1.2.0...v1.3.0) (2026-09-19)
+
+
+### Bug Fixes
+
+* declare main so require('css-is-awesome-mcp') resolves to the server module ([9654727](https://github.com/Jerry2d3d/css-is-awesome-mcp/commit/96547279f263f4b34dc34076df64055ae98570c0))
+
+
+### Features
+
+* theme_from_tokens tool + in-process handler (needs css-is-awesome >= 1.17.0) ([cc7ff94](https://github.com/Jerry2d3d/css-is-awesome-mcp/commit/cc7ff94c422bb9a332370394205b8c303358864a))
+
 # [1.2.0](https://github.com/Jerry2d3d/css-is-awesome-mcp/compare/v1.1.0...v1.2.0) (2026-09-11)
 
 
