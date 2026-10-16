@@ -31,7 +31,7 @@ plain `css-is-awesome` still pulls zero JS, exactly as before.
 
 ## What it is
 
-The exact same 30-tool MCP surface as the server bundled inside
+The same MCP surface as the server bundled inside
 `css-is-awesome` itself (`mcp/server.cjs` there) — same handlers, same
 tools, same responses. The only difference is where it reads cia's source
 data from: this package depends on `css-is-awesome` as a real npm
