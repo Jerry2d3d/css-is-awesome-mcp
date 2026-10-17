@@ -1,3 +1,10 @@
+# [1.5.0](https://github.com/Jerry2d3d/css-is-awesome-mcp/compare/v1.4.0...v1.5.0) (2026-10-17)
+
+
+### Features
+
+* status tool, and store on every list/search envelope ([eef7390](https://github.com/Jerry2d3d/css-is-awesome-mcp/commit/eef7390d3032859c63c9a5d89c55816faa6271f4))
+
 # [1.4.0](https://github.com/Jerry2d3d/css-is-awesome-mcp/compare/v1.3.0...v1.4.0) (2026-09-19)
 
 
